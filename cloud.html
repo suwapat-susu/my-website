@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Thailand Tourism — Regional Map</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700&family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #04111e;
+  --bg2: #071828;
+  --panel: rgba(255,255,255,0.03);
+  --border: rgba(255,255,255,0.07);
+  --cyan: #00D4FF;
+  --orange: #FF6B1A;
+  --gold: #FFD060;
+  --green: #00E5A0;
+  --pink: #FF4FA0;
+  --purple: #A855F7;
+  --text: #E0EEFF;
+  --muted: rgba(200,225,255,0.45);
+
+  --north-color: #00D4FF;
+  --northeast-color: #FFD060;
+  --central-color: #00E5A0;
+  --east-color: #FF6B1A;
+  --west-color: #A855F7;
+  --south-color: #FF4FA0;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'Outfit','Sarabun',sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── TOPBAR ── */
+.topbar {
+  height: 50px;
+  background: rgba(4,17,30,0.95);
+  border-bottom: 1px solid rgba(0,212,255,0.15);
+  display: flex; align-items: center;
+  padding: 0 28px;
+  gap: 20px;
+  flex-shrink: 0;
+  z-index: 10;
+}
+.brand {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 20px; letter-spacing: 3px;
+  background: linear-gradient(90deg, var(--cyan), #60b4ff);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.topbar-sep { width:1px; height:20px; background:var(--border); }
+.topbar-title { font-size: 13px; color: var(--muted); letter-spacing: 1.5px; text-transform:uppercase; }
+.topbar-right { margin-left:auto; display:flex; align-items:center; gap:16px; font-size:12px; color:var(--muted); }
+.live-dot { display:inline-block;width:7px;height:7px;border-radius:50%;background:#00E5A0;animation:blink 1.4s infinite;margin-right:5px; }
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
+
+/* ── MAIN LAYOUT ── */
+.layout {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 520px 1fr;
+  overflow: hidden;
+}
+
+/* ══════════ LEFT: MAP PANEL ══════════ */
+.map-panel {
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.map-header {
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.map-header-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 16px; letter-spacing: 3px; color: var(--cyan);
+}
+.map-header-sub { font-size: 11px; color: var(--muted); margin-top: 2px; letter-spacing:1px; }
+
+.map-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Glow behind map */
+.map-container::before {
+  content:'';
+  position:absolute;
+  width:300px;height:500px;
+  background: radial-gradient(ellipse, rgba(0,212,255,0.07) 0%, transparent 70%);
+  top:50%;left:50%;transform:translate(-50%,-50%);
+  pointer-events:none;
+}
+
+#thailand-map {
+  max-height: 100%;
+  max-width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* SVG region paths */
+.region-path {
+  cursor: pointer;
+  transition: filter 0.2s, opacity 0.2s;
+  stroke: rgba(4,17,30,0.8);
+  stroke-width: 1px;
+}
+.region-path:hover { filter: brightness(1.4); }
+.region-path.active { filter: brightness(1.6) drop-shadow(0 0 8px currentColor); stroke-width: 1.5px; }
+.region-path.dimmed { opacity: 0.25; }
+
+/* Region legend bottom */
+.region-legend {
+  padding: 10px 16px 12px;
+  border-top: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: repeat(3,1fr);
+  gap: 6px;
+  flex-shrink: 0;
+}
+.legend-btn {
+  display: flex; align-items: center; gap: 7px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.02);
+  cursor: pointer; border-radius: 2px;
+  transition: all 0.15s;
+}
+.legend-btn:hover { background: rgba(255,255,255,0.06); }
+.legend-btn.active { background: rgba(255,255,255,0.07); }
+.legend-swatch { width:10px;height:10px;border-radius:50%;flex-shrink:0; }
+.legend-name { font-size:11px; color:var(--muted); }
+.legend-btn.active .legend-name { color:var(--text); }
+
+/* ══════════ RIGHT: STATS PANEL ══════════ */
+.stats-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.stats-header {
+  padding: 16px 24px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  display: flex; align-items: flex-start; justify-content: space-between;
+}
+.region-display-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 32px; letter-spacing: 3px;
+  line-height: 1;
+}
+.region-display-sub { font-size: 11px; color:var(--muted); margin-top:4px; letter-spacing:1px; }
+.region-badge {
+  padding: 5px 14px;
+  font-size: 11px; letter-spacing: 2px; text-transform:uppercase;
+  border: 1px solid;
+  border-radius: 2px;
+}
+
+/* KPI row */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4,1fr);
+  gap: 1px;
+  background: var(--border);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.kpi-box {
+  background: var(--bg);
+  padding: 14px 18px;
+}
+.kpi-label { font-size:9px; letter-spacing:2.5px; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
+.kpi-value { font-family:'Bebas Neue',sans-serif; font-size:28px; line-height:1; }
+.kpi-change { font-size:11px; margin-top:4px; }
+.kpi-change.up { color:#00E5A0; }
+.kpi-change.down { color:#FF4FA0; }
+
+/* Charts area */
+.charts-area {
+  flex:1;
+  overflow-y: auto;
+  padding: 18px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.charts-area::-webkit-scrollbar { width:3px; }
+.charts-area::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.1); }
+
+/* chart card */
+.chart-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 16px 18px;
+}
+.chart-card-title {
+  font-size: 10px; letter-spacing: 2.5px; text-transform:uppercase;
+  color:var(--muted); margin-bottom:14px;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.chart-card-title span { color:var(--text); font-size:12px; font-weight:600; letter-spacing:0; }
+
+/* ── BAR CHART ── */
+.bar-chart-wrap { display:flex; flex-direction:column; gap:10px; }
+.bar-row { display:grid; grid-template-columns: 80px 1fr 56px; align-items:center; gap:10px; }
+.bar-month { font-size:11px; color:var(--muted); text-align:right; }
+.bar-track { height:7px; background:rgba(255,255,255,0.05); border-radius:1px; overflow:hidden; position:relative; }
+.bar-fill {
+  height:100%; border-radius:1px;
+  transform:scaleX(0); transform-origin:left;
+  transition: transform 0.7s cubic-bezier(0.16,1,0.3,1);
+}
+.bar-fill.animated { transform:scaleX(1); }
+.bar-val { font-size:12px; font-weight:600; text-align:right; }
+
+/* ── LINE CHART SVG ── */
+
+/* ── DONUT ── */
+.donut-row { display:flex; gap:20px; align-items:center; }
+.donut-legend-list { flex:1; display:flex; flex-direction:column; gap:8px; }
+.donut-legend-item { display:flex;align-items:center;gap:8px;font-size:12px; }
+.donut-legend-dot { width:8px;height:8px;border-radius:50%;flex-shrink:0; }
+.donut-legend-label { flex:1; color:var(--muted); }
+.donut-legend-val { font-weight:600; }
+
+/* ── TOP CITIES ── */
+.city-rank-list { display:flex; flex-direction:column; gap:6px; }
+.city-rank-row {
+  display:flex; align-items:center; gap:10px;
+  padding:8px 10px;
+  background:rgba(255,255,255,0.025);
+  border:1px solid rgba(255,255,255,0.05);
+  border-radius:2px;
+  transition: background 0.15s;
+  cursor:pointer;
+}
+.city-rank-row:hover { background:rgba(255,255,255,0.05); }
+.rank-num { font-family:'Bebas Neue',sans-serif;font-size:20px;color:rgba(255,255,255,0.18);width:24px; }
+.rank-flag { font-size:20px; }
+.rank-city { flex:1; }
+.rank-city-name { font-size:13px;font-weight:600; }
+.rank-city-sub { font-size:10px;color:var(--muted); }
+/* rank bar removed */
+/* --- สไตล์สำหรับ Image Preview Tooltip --- */
+
+/* กำหนดให้พื้นที่ทั้งหมดของแถวเป็นกล่องอ้างอิง */
+.city-link-wrapper {
+    position: relative; /* สำคัญ: เพื่อให้ preview ลอยตามตัวแถว */
+    overflow: visible; /* ยอมให้ preview ลอยออกมานอกแถวได้ */
+    transition: background-color 0.3s;
+}
+
+/* เอฟเฟกต์ไฮไลท์เมื่อเอาเมาส์วางที่แถว */
+.city-link-wrapper:hover .city-rank-row {
+    background-color: rgba(255, 255, 255, 0.08); /* สีไฮไลท์จางๆ */
+    cursor: pointer;
+}
+
+/* ซ่อนกล่องพรีวิวไว้ก่อน */
+.city-preview-box {
+    visibility: hidden;
+    width: 200px; /* ปรับขนาดความกว้างตามต้องการ */
+    background-color: #1e1e1e; /* สีพื้นหลังของกล่องพรีวิว */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5); /* เงา */
+    
+    position: absolute;
+    z-index: 100; /* ให้อยู่เหนือเนื้อหาอื่นๆ */
+    bottom: 120%; /* ลอยอยู่เหนือแถว */
+    left: 50%; /* จัดให้อยู่กึ่งกลาง */
+    transform: translateX(-50%) translateY(10px); /* จัดกึ่งกลางและเยื้องลงเล็กน้อย */
+    
+    opacity: 0;
+    transition: opacity 0.3s, transform 0.3s, visibility 0.3s;
+    pointer-events: none; /* ไม่ให้กล่อง preview บังการคลิก */
+}
+
+/* ปรับสไตล์รูปภาพภายในพรีวิว */
+.city-preview-box img {
+    width: 100%;
+    height: 120px; /* ปรับความสูงตามต้องการ */
+    object-fit: cover; /* ให้รูปภาพไม่บิดเบี้ยว */
+    border-radius: 4px;
+    margin-bottom: 8px;
+}
+
+/* ปรับสไตล์ข้อความภายในพรีวิว */
+.preview-text {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 13px;
+    text-align: center;
+}
+
+/* --- แสดงผล Preview เมื่อ Hover --- */
+.city-link-wrapper:hover .city-preview-box {
+    visibility: visible;
+    opacity: 1;
+    transform: translateX(-50%) translateY(0); /* เลื่อนขึ้นมาที่ตำแหน่งจริง */
+}
+
+/* --- ตกแต่งเพิ่มเติมสำหรับ CSS เดิมในโปรเจกต์ของคุณ --- */
+.city-rank-row {
+    transition: background-color 0.3s; /* เพิ่ม transition ให้แถวเดิม */
+}
+
+/* placeholder for no-select state */
+.placeholder-state {
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  height:100%; gap:16px; color:var(--muted);
+}
+.placeholder-icon { font-size:60px;opacity:0.3; }
+.placeholder-text { font-size:14px;letter-spacing:2px;text-transform:uppercase; }
+
+/* ── ANIMATION ── */
+@keyframes fadeSlideIn {
+  from{opacity:0;transform:translateY(12px)}
+  to{opacity:1;transform:translateY(0)}
+}
+.animate-in { animation: fadeSlideIn 0.4s ease forwards; }
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="brand">THAILAND TOURIST VIBE 🇹🇭</div>
+  <div class="topbar-sep"></div>
+  <div class="topbar-title">Regional Tourism Analytics</div>
+  <div class="topbar-right">
+    <span><span class="live-dot"></span>Live Data 2024</span>
+    <span style="color:var(--cyan);font-size:11px;letter-spacing:1px;">Data as of Mar 2024</span>
+  </div>
+</div>
+
+<!-- MAIN LAYOUT -->
+<div class="layout">
+
+  <!-- LEFT: MAP -->
+  <div class="map-panel">
+    <div class="map-header">
+      <div class="map-header-title">THAILAND — INTERACTIVE REGION MAP</div>
+      <div class="map-header-sub">Click a region to view tourism statistics</div>
+    </div>
+
+    <div class="map-container">
+      <svg id="thailand-map" viewBox="35 10 330 755" xmlns="http://www.w3.org/2000/svg">
+
+        <!-- ═══ NORTH North ═══ -->
+        <path class="region-path" id="path-north" fill="#00D4FF" fill-opacity="0.65"
+          d="M 142.5,12.6 L 138.8,15.7 L 126.3,18.8 L 126.3,21.9 L 128.6,25.1 L 127.7,28.2 L 110.6,31.3 L 109.7,34.4 L 109.7,37.5 L 108.8,40.6 L 108.8,43.7
+             L 71.8,46.8 L 71.8,49.9 L 71.8,53.0 L 68.1,56.2 L 65.3,59.3 L 64.9,62.4 L 63.0,65.5 L 63.5,68.6 L 62.6,71.7 L 64.9,74.8 L 64.4,77.9 L 63.9,81.0
+             L 60.7,84.1 L 59.8,87.2 L 59.8,90.4 L 61.2,93.5 L 61.6,96.6 L 61.6,99.7 L 61.6,102.8 L 61.6,105.9 L 46.8,109.0 L 48.2,112.1 L 48.7,115.2
+             L 49.6,118.3 L 51.0,121.4 L 56.1,124.6 L 57.9,127.7 L 58.9,130.8 L 59.8,133.9 L 60.7,137.0 L 58.4,140.1 L 58.4,143.2 L 60.2,146.3 L 61.6,149.4
+             L 63.0,152.5 L 65.8,155.7 L 68.1,158.8 L 71.3,161.9 L 72.7,165.0 L 74.6,168.1 L 76.0,171.2 L 78.3,174.3 L 80.6,177.4 L 81.5,180.5 L 86.1,183.6
+             L 88.0,186.7 L 88.9,189.9 L 89.4,193.0 L 90.7,196.1 L 88.0,199.2 L 89.4,202.3 L 91.7,205.4 L 92.1,208.5 L 94.0,211.6 L 94.4,214.7 L 94.4,217.8
+             L 94.9,220.9 L 104.6,224.1 L 102.3,227.2 L 101.8,230.3 L 94.4,233.4 L 92.6,236.5 L 92.6,239.6 L 92.6,242.7 L 92.1,245.8 L 91.7,248.9 L 91.2,252.0
+             L 93.5,255.2 L 96.3,258.3 L 97.7,261.4 L 99.1,264.5 L 101.8,267.6 L 104.1,270.7 L 105.1,273.8 L 107.8,276.9
+             L 109.2,273.8 L 109.2,270.7 L 193.3,267.6 L 193.8,264.5 L 193.8,261.4 L 194.7,258.3 L 196.1,255.2 L 196.5,252.0 L 194.7,248.9 L 194.7,245.8
+             L 195.6,242.7 L 196.5,239.6 L 194.7,236.5 L 194.7,233.4 L 195.1,230.3 L 195.1,227.2 L 195.1,224.1 L 195.6,220.9 L 196.5,217.8 L 198.8,214.7
+             L 199.8,211.6 L 200.7,208.5 L 201.6,205.4 L 210.4,202.3 L 209.0,199.2 L 208.1,196.1 L 207.2,193.0 L 207.2,189.9 L 206.2,186.7 L 201.2,183.6
+             L 184.5,180.5 L 185.0,177.4 L 185.4,174.3 L 183.1,171.2 L 178.5,168.1 L 179.0,165.0 L 175.7,161.9 L 177.6,158.8 L 180.8,155.7 L 181.3,152.5
+             L 181.3,149.4 L 182.2,146.3 L 183.1,143.2 L 185.0,140.1 L 185.9,137.0 L 187.8,133.9 L 188.2,130.8 L 188.2,127.7 L 186.8,124.6 L 186.8,121.4
+             L 187.3,118.3 L 184.1,115.2 L 184.1,112.1 L 185.9,109.0 L 188.2,105.9 L 191.5,102.8 L 190.1,99.7 L 191.0,96.6 L 191.0,93.5 L 191.0,90.4
+             L 192.4,87.2 L 194.7,84.1 L 192.8,81.0 L 191.0,77.9 L 191.0,74.8 L 191.0,71.7 L 189.6,68.6 L 189.1,65.5 L 189.1,62.4 L 191.9,59.3
+             L 184.5,56.2 L 161.4,53.0 L 160.5,49.9 L 160.0,46.8 L 161.4,43.7 L 163.7,40.6 L 164.7,37.5 L 166.5,34.4 L 166.5,31.3 L 167.0,28.2
+             L 162.3,25.1 L 160.5,21.9 L 158.2,18.8 L 156.8,15.7 L 142.9,12.6 Z"/>
+
+        <!-- ═══ NORTHEAST Northeast ═══ -->
+        <path class="region-path" id="path-northeast" fill="#FFD060" fill-opacity="0.65"
+          d="M 269.1,114.6 L 267.7,117.7 L 268.6,120.8 L 264.0,123.9 L 221.5,127.0 L 219.6,130.2 L 216.9,133.3 L 210.9,136.4 L 210.4,139.5 L 205.3,142.6
+             L 204.4,145.7 L 203.0,148.8 L 198.4,151.9 L 195.1,155.0 L 192.8,158.1 L 178.1,161.2 L 179.9,164.4 L 179.9,167.5 L 183.6,170.6 L 186.8,173.7
+             L 186.4,176.8 L 185.4,179.9 L 185.4,183.0 L 184.5,186.1 L 184.5,189.2 L 208.1,192.3 L 209.0,195.5 L 210.4,198.6 L 211.8,201.7 L 202.5,204.8
+             L 202.1,207.9 L 201.2,211.0 L 200.7,214.1 L 197.9,217.2 L 196.5,220.3 L 196.5,223.4 L 196.1,226.5 L 196.1,229.7 L 195.6,232.8 L 196.1,235.9
+             L 197.5,239.0 L 197.9,242.1 L 195.6,245.2 L 196.1,248.3 L 197.5,251.4 L 197.5,254.5 L 197.0,257.6 L 197.0,260.7 L 197.9,263.9 L 197.0,267.0
+             L 201.2,270.1 L 197.5,273.2 L 197.5,276.3 L 197.5,279.4 L 198.4,282.5 L 198.4,285.6 L 199.3,288.7 L 200.7,291.8 L 200.7,295.0 L 196.5,298.1
+             L 190.5,301.2 L 190.1,304.3 L 190.1,307.4 L 191.0,310.5 L 195.1,313.6 L 205.8,316.7 L 208.5,319.8 L 218.2,322.9 L 219.6,326.0 L 223.3,329.2
+             L 248.3,329.2 L 335.6,326.0 L 338.4,322.9 L 341.1,319.8 L 345.8,316.7 L 348.5,313.6 L 349.9,310.5 L 350.8,307.4 L 350.8,304.3 L 350.8,301.2
+             L 350.4,298.1 L 351.3,295.0 L 351.8,291.8 L 353.2,288.7 L 351.8,285.6 L 349.9,282.5 L 348.5,279.4 L 349.5,276.3 L 352.2,273.2 L 349.0,270.1
+             L 349.9,267.0 L 352.2,263.9 L 353.2,260.7 L 353.6,257.6 L 354.5,254.5 L 353.2,251.4 L 346.2,248.3 L 344.8,245.2 L 344.4,242.1 L 344.4,239.0
+             L 343.0,235.9 L 334.7,232.8 L 332.8,229.7 L 331.9,226.5 L 328.7,223.4 L 327.7,220.3 L 326.8,217.2 L 325.4,214.1 L 321.7,211.0 L 321.3,207.9
+             L 321.7,204.8 L 321.7,201.7 L 321.7,198.6 L 321.3,195.5 L 321.3,192.3 L 321.3,189.2 L 321.3,186.1 L 322.2,183.0 L 323.1,179.9 L 323.6,176.8
+             L 323.6,173.7 L 323.6,170.6 L 323.1,167.5 L 321.7,164.4 L 319.4,161.2 L 315.7,158.1 L 312.0,155.0 L 309.7,151.9 L 308.3,148.8 L 307.0,145.7
+             L 302.8,142.6 L 301.9,139.5 L 301.4,136.4 L 299.1,133.3 L 297.3,130.2 L 296.8,127.0 L 295.9,123.9 L 293.6,120.8 L 280.2,117.7 L 273.7,114.6 Z"/>
+
+        <!-- ═══ CENTRAL Central ═══ -->
+        <path class="region-path" id="path-central" fill="#00E5A0" fill-opacity="0.65"
+          d="M 147.1,229.0 L 144.8,232.1 L 140.6,235.3 L 139.7,238.4 L 114.8,241.5 L 112.0,244.6 L 112.9,247.7 L 112.9,250.8 L 112.9,253.9
+             L 91.2,257.0 L 91.7,260.1 L 92.1,263.2 L 91.7,266.3 L 86.1,269.5 L 81.5,272.6 L 80.1,275.7 L 78.7,278.8 L 78.7,281.9 L 78.7,285.0
+             L 80.1,288.1 L 81.0,291.2 L 81.0,294.3 L 81.5,297.4 L 82.4,300.5 L 83.8,303.7 L 85.2,306.8 L 88.0,309.9 L 90.7,313.0 L 91.7,316.1
+             L 93.0,319.2 L 94.9,322.3 L 98.1,325.4 L 101.8,328.5 L 104.6,331.6 L 106.4,334.8 L 108.3,337.9 L 110.1,341.0 L 111.5,344.1 L 112.9,347.2
+             L 114.3,350.3 L 114.8,353.4 L 114.8,356.5 L 115.2,359.6 L 115.2,362.7 L 115.7,365.8 L 115.7,369.0 L 115.7,372.1 L 115.7,375.2 L 117.5,378.3
+             L 119.4,378.3 L 133.2,375.2 L 133.2,372.1 L 138.8,369.0 L 140.2,365.8 L 141.6,362.7 L 145.7,359.6 L 146.2,356.5 L 146.6,353.4 L 144.8,350.3
+             L 142.9,347.2 L 142.0,344.1 L 139.7,341.0 L 187.3,337.9 L 190.1,334.8 L 193.8,331.6 L 193.8,328.5 L 196.1,325.4 L 200.7,322.3 L 199.8,319.2
+             L 197.0,316.1 L 192.4,313.0 L 189.1,309.9 L 188.7,306.8 L 189.1,303.7 L 189.6,300.5 L 195.6,297.4 L 199.3,294.3 L 199.3,291.2 L 198.4,288.1
+             L 197.5,285.0 L 197.0,281.9 L 196.5,278.8 L 196.5,275.7 L 196.1,272.6 L 196.1,269.5 L 196.1,266.3 L 196.5,263.2 L 196.1,260.1
+             L 175.3,257.0 L 175.7,253.9 L 175.3,250.8 L 174.4,247.7 L 173.4,244.6 L 173.4,241.5 L 172.5,238.4 L 149.9,235.3 L 148.5,232.1 L 147.1,229.0 Z"/>
+
+        <!-- ═══ WEST West (long western strip) ═══ -->
+        <path class="region-path" id="path-west" fill="#A855F7" fill-opacity="0.65"
+          d="M 102.3,501.4 L 100.9,504.5 L 100.9,507.6 L 101.4,510.7 L 100.9,513.8 L 100.0,517.0 L 100.0,520.1 L 99.5,523.2 L 96.7,526.3 L 95.8,529.4
+             L 94.4,532.5 L 93.5,535.6 L 94.4,538.7 L 96.7,541.8 L 90.3,544.9 L 91.2,548.1 L 89.8,551.2 L 89.4,554.3 L 88.0,557.4 L 87.5,560.5 L 86.6,563.6
+             L 86.6,566.7 L 85.2,569.8 L 86.1,572.9 L 81.0,576.0 L 80.6,579.1 L 80.1,582.3 L 80.1,585.4 L 81.0,588.5 L 81.5,591.6 L 80.6,594.7 L 81.0,597.8
+             L 78.7,600.9 L 81.5,604.0 L 79.6,607.1 L 78.7,610.2 L 79.2,613.3 L 79.6,616.5 L 80.6,619.6 L 81.0,622.7 L 81.5,625.8 L 86.1,628.9 L 82.4,632.0
+             L 81.5,635.1 L 81.5,638.2 L 81.5,641.3 L 81.5,644.4 L 81.5,647.6 L 111.1,650.7 L 110.1,653.8 L 118.5,656.9 L 110.1,660.0 L 111.1,663.1
+             L 121.2,666.2 L 121.2,669.3 L 130.9,672.4 L 127.7,675.5 L 129.1,678.6 L 133.7,681.8 L 133.2,684.9 L 132.8,688.0 L 134.2,691.1 L 134.6,694.2
+             L 137.4,697.3 L 139.7,700.4 L 142.9,703.5 L 143.9,706.6 L 147.1,709.7 L 148.5,712.8 L 149.9,714.7
+             L 150.3,712.8 L 150.3,709.7 L 146.2,706.6 L 150.8,703.5 L 151.7,700.4 L 151.7,697.3 L 135.6,694.2 L 149.4,691.1 L 146.6,688.0 L 145.7,684.9
+             L 143.4,681.8 L 142.5,678.6 L 141.6,675.5 L 142.0,672.4 L 141.1,669.3 L 139.2,666.2 L 137.9,663.1 L 137.4,660.0 L 121.7,656.9 L 137.4,653.8
+             L 136.5,650.7 L 136.0,647.6 L 134.6,644.4 L 133.7,641.3 L 106.9,638.2 L 122.6,635.1 L 119.4,632.0 L 98.6,628.9 L 119.4,625.8 L 117.1,622.7
+             L 98.6,619.6 L 105.5,616.5 L 104.6,613.3 L 104.1,610.2 L 103.2,607.1 L 91.2,604.0 L 92.1,600.9 L 91.7,597.8 L 88.4,594.7 L 86.6,591.6
+             L 88.4,588.5 L 88.0,585.4 L 87.5,582.3 L 86.6,579.1 L 84.3,576.0 L 89.8,572.9 L 94.4,569.8 L 94.9,566.7 L 88.4,563.6 L 98.1,560.5
+             L 96.3,557.4 L 94.0,554.3 L 94.0,551.2 L 91.7,548.1 L 95.8,544.9 L 97.7,541.8 L 94.9,538.7 L 103.2,535.6 L 104.6,532.5 L 96.3,529.4
+             L 102.3,526.3 L 103.2,523.2 L 104.6,520.1 L 103.2,517.0 L 103.2,513.8 L 105.5,510.7 L 105.1,507.6 L 104.1,504.5 L 103.2,501.4
+             L 119.4,378.3 L 117.5,378.3 L 115.7,375.2 L 115.7,372.1 L 115.7,369.0 L 115.7,365.8 L 115.2,362.7 L 115.2,359.6 L 114.8,356.5 L 114.8,353.4
+             L 114.3,350.3 L 112.9,347.2 L 111.5,344.1 L 110.1,341.0 L 108.3,337.9 L 106.4,334.8 L 104.6,331.6 L 101.8,328.5 L 98.1,325.4 L 94.9,322.3
+             L 93.0,319.2 L 91.7,316.1 L 90.7,313.0 L 88.0,309.9 L 85.2,306.8 L 83.8,303.7 L 82.4,300.5 L 81.5,297.4 L 81.0,294.3 L 81.0,291.2
+             L 80.1,288.1 L 78.7,285.0 L 78.7,281.9 L 78.7,278.8 L 80.1,275.7 L 81.5,272.6 L 86.1,269.5 L 91.7,266.3 L 92.1,263.2 L 91.7,260.1
+             L 91.2,257.0 L 112.9,253.9 L 112.9,250.8 L 112.9,247.7 L 112.0,244.6 L 114.8,241.5 L 139.7,238.4 L 140.6,235.3 L 144.8,232.1 L 147.1,229.0
+             L 148.5,232.1 L 149.9,235.3 L 172.5,238.4 L 173.4,241.5 L 173.4,244.6 L 174.4,247.7 L 175.3,250.8 L 175.7,253.9 L 175.3,257.0
+             Z"/>
+
+        <!-- ═══ EAST East ═══ -->
+        <path class="region-path" id="path-east" fill="#FF6B1A" fill-opacity="0.65"
+          d="M 200.7,317.3 L 175.3,325.4 L 170.7,328.5 L 143.4,331.6 L 139.7,334.8 L 140.6,337.9 L 142.0,341.0 L 142.9,344.1 L 143.9,347.2
+             L 146.6,350.3 L 148.9,353.4 L 147.6,356.5 L 147.1,359.6 L 142.5,362.7 L 141.6,365.8 L 140.2,369.0 L 139.7,372.1 L 144.3,375.2
+             L 181.3,378.9 L 180.4,384.5 L 181.8,396.9 L 185.0,401.3 L 214.6,404.4 L 245.5,419.3 L 235.3,427.4 L 232.6,436.7
+             L 235.3,427.4 L 245.5,419.3 L 214.6,404.4 L 185.4,401.3 L 181.8,396.9 L 180.4,384.5 L 214.6,378.9 L 144.3,372.1
+             L 144.3,369.0 L 147.1,365.8 L 152.2,362.7 L 178.5,359.6 L 179.4,353.4 L 179.4,350.3 L 179.4,347.2 L 179.0,344.1
+             L 179.0,341.0 L 179.0,337.9 L 179.0,334.8 L 179.0,331.6 L 178.5,328.5 L 178.5,325.4 L 201.2,317.3 Z"/>
+
+        <!-- ═══ SOUTH South ═══ -->
+        <path class="region-path" id="path-south" fill="#FF4FA0" fill-opacity="0.65"
+          d="M 244.1,332.3 L 239.0,357.8 L 181.3,372.7 L 145.7,378.9 L 144.3,375.2 L 133.2,375.2 L 119.4,378.3
+             L 103.2,501.4 L 104.1,504.5 L 105.1,507.6 L 105.5,510.7 L 103.2,513.8 L 103.2,517.0 L 104.6,520.1 L 103.2,523.2 L 102.3,526.3 L 96.3,529.4
+             L 104.6,532.5 L 103.2,535.6 L 94.9,538.7 L 97.7,541.8 L 95.8,544.9 L 91.7,548.1 L 94.0,551.2 L 94.0,554.3 L 96.3,557.4 L 98.1,560.5
+             L 88.4,563.6 L 94.9,566.7 L 94.4,569.8 L 89.8,572.9 L 84.3,576.0 L 86.6,579.1 L 87.5,582.3 L 88.0,585.4 L 88.4,588.5 L 86.6,591.6
+             L 88.4,594.7 L 91.7,597.8 L 92.1,600.9 L 91.2,604.0 L 103.2,607.1 L 104.1,610.2 L 104.6,613.3 L 105.5,616.5 L 98.6,619.6 L 117.1,622.7
+             L 119.4,625.8 L 98.6,628.9 L 119.4,632.0 L 122.6,635.1 L 106.9,638.2 L 133.7,641.3 L 134.6,644.4 L 136.0,647.6 L 136.5,650.7 L 158.2,649.4
+             L 157.7,646.3 L 154.0,643.2 L 156.8,640.1 L 156.3,637.0 L 155.9,633.9 L 155.4,630.8 L 155.4,627.7 L 154.5,624.5 L 154.0,621.4 L 153.1,618.3
+             L 152.2,615.2 L 146.2,612.1 L 143.9,609.0 L 142.5,605.9 L 142.5,602.8 L 142.0,599.7 L 142.0,596.6 L 141.1,593.4 L 141.1,590.3 L 140.6,587.2
+             L 140.6,584.1 L 139.7,581.0 L 139.2,577.9 L 139.2,574.8 L 136.0,571.7 L 117.1,568.6 L 145.7,565.5 L 146.6,562.4 L 147.1,559.2
+             L 113.8,556.1 L 147.1,553.0 L 146.6,549.9 L 112.5,546.8 L 112.9,543.7 L 113.4,540.6 L 113.4,537.5 L 113.8,534.4 L 138.3,531.3
+             L 113.8,528.2 L 115.7,525.0 L 112.9,521.9 L 117.5,518.8 L 117.1,515.7 L 116.1,512.6 L 116.1,509.5 L 118.0,506.4 L 119.4,503.3 L 122.2,500.2
+             L 123.1,497.1 L 124.5,493.9 L 125.4,490.8 L 125.4,487.7 L 125.4,484.6 L 125.4,481.5 L 125.4,478.4 L 128.2,475.3 L 127.7,472.2 L 128.6,469.1
+             L 129.5,466.0 L 130.5,462.9 L 131.9,459.7 L 132.8,456.6 L 134.2,453.5 L 136.0,450.4 L 136.5,447.3 L 137.4,444.2 L 137.4,441.1 L 138.8,438.0
+             L 141.1,434.9 L 142.9,431.8 L 143.9,428.7 L 144.3,425.5 L 143.9,422.4 L 144.3,419.3 L 143.4,416.2 L 143.4,413.1 L 143.4,410.0 L 142.5,406.9
+             L 142.9,403.8 L 142.9,400.7 L 143.4,397.6 L 144.3,394.4 L 145.3,391.3 L 146.2,388.2 L 147.1,385.1 L 181.3,382.0 L 145.7,378.9
+             L 181.3,372.7 L 239.0,357.8 L 244.1,332.3 Z
+             M 186.8,756.4 L 188.7,755.1 L 191.5,752.0 L 212.7,748.9 L 215.5,745.8 L 216.9,742.7 L 216.9,739.6 L 218.2,736.5 L 221.0,733.4
+             L 222.4,730.3 L 221.9,727.2 L 220.6,724.0 L 217.8,720.9 L 215.0,717.8 L 212.7,714.7 L 210.4,711.6 L 208.1,708.5 L 207.2,705.4
+             L 204.9,702.3 L 203.5,699.2 L 202.5,696.1 L 198.4,692.9 L 174.8,689.8 L 171.6,686.7 L 170.2,683.6 L 168.4,680.5 L 167.4,677.4
+             L 164.2,674.3 L 162.8,671.2 L 161.9,668.1 L 161.4,665.0 L 160.5,661.9 L 160.0,658.7 L 159.6,655.6 L 159.1,652.5 L 158.2,649.4
+             L 136.5,650.7 L 136.0,647.6 L 134.6,644.4 L 133.7,641.3 L 106.9,638.2 L 122.6,635.1 L 82.0,637.0 L 82.0,633.9 L 82.4,630.8
+             L 83.3,627.7 L 81.5,624.5 L 81.0,621.4 L 80.6,618.3 L 80.1,615.2 L 79.6,612.1 L 79.2,609.0 L 80.6,605.9 L 79.6,602.8
+             L 80.1,599.7 L 81.5,596.6 L 81.5,593.4 L 80.1,590.3 L 83.8,587.2 L 84.3,584.1 L 80.6,581.0 L 81.0,577.9 L 84.3,574.8
+             L 85.2,571.7 L 86.1,568.6 L 86.6,565.5 L 87.5,562.4 L 87.5,559.2 L 89.4,556.1 L 90.3,553.0 L 90.3,549.9 L 90.7,546.8
+             L 149.9,714.7 L 149.4,714.7 L 175.7,717.8 L 176.2,720.9 L 176.7,724.0 L 186.8,727.2 L 184.5,730.3 L 186.8,733.4 L 186.4,736.5
+             L 186.4,739.6 L 183.6,742.7 L 182.7,745.8 L 182.7,748.9 L 185.4,752.0 L 186.4,755.1 L 186.8,756.4 Z"/>
+
+        <!-- ══ LABELS ══ -->
+        <text x="143" y="148" text-anchor="middle" fill="rgba(4,17,30,0.95)" font-family="Bebas Neue,sans-serif" font-size="13" letter-spacing="2" pointer-events="none">NORTH</text>
+        <text x="143" y="159" text-anchor="middle" fill="rgba(4,17,30,0.8)" font-family="Outfit,sans-serif" font-size="9" pointer-events="none">North</text>
+
+        <text x="277" y="225" text-anchor="middle" fill="rgba(4,17,30,0.95)" font-family="Bebas Neue,sans-serif" font-size="11" letter-spacing="1.5" pointer-events="none">NORTHEAST</text>
+        <text x="277" y="236" text-anchor="middle" fill="rgba(4,17,30,0.8)" font-family="Outfit,sans-serif" font-size="8.5" pointer-events="none">Northeast</text>
+
+        <text x="150" y="310" text-anchor="middle" fill="rgba(4,17,30,0.95)" font-family="Bebas Neue,sans-serif" font-size="11" letter-spacing="1.5" pointer-events="none">CENTRAL</text>
+        <text x="150" y="321" text-anchor="middle" fill="rgba(4,17,30,0.8)" font-family="Outfit,sans-serif" font-size="8" pointer-events="none">Central</text>
+
+        <text x="186" y="355" text-anchor="middle" fill="rgba(4,17,30,0.95)" font-family="Bebas Neue,sans-serif" font-size="10" letter-spacing="1" pointer-events="none">EAST</text>
+        <text x="186" y="365" text-anchor="middle" fill="rgba(4,17,30,0.8)" font-family="Outfit,sans-serif" font-size="7.5" pointer-events="none">East</text>
+
+        <text x="92" y="455" text-anchor="middle" fill="rgba(230,225,255,0.9)" font-family="Bebas Neue,sans-serif" font-size="10" letter-spacing="1" pointer-events="none">WEST</text>
+        <text x="92" y="465" text-anchor="middle" fill="rgba(220,215,255,0.7)" font-family="Outfit,sans-serif" font-size="7.5" pointer-events="none">West</text>
+
+        <text x="162" y="570" text-anchor="middle" fill="rgba(4,17,30,0.95)" font-family="Bebas Neue,sans-serif" font-size="13" letter-spacing="2" pointer-events="none">SOUTH</text>
+        <text x="162" y="581" text-anchor="middle" fill="rgba(4,17,30,0.8)" font-family="Outfit,sans-serif" font-size="9" pointer-events="none">South</text>
+
+        <!-- Compass -->
+        <g transform="translate(348,26)">
+          <circle cx="0" cy="0" r="14" fill="rgba(0,212,255,0.07)" stroke="rgba(0,212,255,0.3)" stroke-width="1"/>
+          <text x="0" y="-3" text-anchor="middle" fill="#00D4FF" font-size="9" font-family="Bebas Neue,sans-serif">N</text>
+          <polygon points="0,-2 1.5,4 0,2.5 -1.5,4" fill="#00D4FF" opacity="0.8"/>
+        </g>
+
+        <!-- Sea labels -->
+        <text x="295" y="430" text-anchor="middle" fill="rgba(0,212,255,0.18)" font-family="Outfit,sans-serif" font-size="8" font-style="italic" pointer-events="none">Gulf of Thailand</text>
+        <text x="58" y="530" text-anchor="middle" fill="rgba(0,212,255,0.18)" font-family="Outfit,sans-serif" font-size="7.5" font-style="italic" pointer-events="none" transform="rotate(-90,58,530)">Andaman Sea</text>
+      </svg>
+    </div>
+
+    <!-- Region Legend Buttons -->
+    <div class="region-legend">
+      <div class="legend-btn" data-region="north">
+        <div class="legend-swatch" style="background:var(--north-color);"></div>
+        <div class="legend-name">North</div>
+      </div>
+      <div class="legend-btn" data-region="northeast">
+        <div class="legend-swatch" style="background:var(--northeast-color);"></div>
+        <div class="legend-name">Northeast</div>
+      </div>
+      <div class="legend-btn" data-region="central">
+        <div class="legend-swatch" style="background:var(--central-color);"></div>
+        <div class="legend-name">Central</div>
+      </div>
+      <div class="legend-btn" data-region="east">
+        <div class="legend-swatch" style="background:var(--east-color);"></div>
+        <div class="legend-name">East</div>
+      </div>
+      <div class="legend-btn" data-region="west">
+        <div class="legend-swatch" style="background:var(--west-color);"></div>
+        <div class="legend-name">West</div>
+      </div>
+      <div class="legend-btn" data-region="south">
+        <div class="legend-swatch" style="background:var(--south-color);"></div>
+        <div class="legend-name">South</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: STATS -->
+  <div class="stats-panel" id="stats-panel">
+    <div id="placeholder-view" class="placeholder-state" style="height:100%;">
+      <div class="placeholder-icon">🗺️</div>
+      <div class="placeholder-text">Select a region on the map</div>
+      <div style="font-size:12px;color:var(--muted);letter-spacing:0.5px;">Click a region to view tourism statistics</div>
+    </div>
+
+    <div id="stats-view" style="display:none;flex-direction:column;height:100%;">
+      <!-- Stats Header -->
+      <div class="stats-header" id="stats-header">
+        <div>
+          <div class="region-display-name" id="region-name-display">NORTH</div>
+          <div class="region-display-sub" id="region-sub-display">North · 17 Provinces</div>
+        </div>
+        <div class="region-badge" id="region-badge">TOP REGION</div>
+      </div>
+
+      <!-- KPIs -->
+      <div class="kpi-row" id="kpi-row">
+        <div class="kpi-box">
+          <div class="kpi-label">Tourists 2024</div>
+          <div class="kpi-value" id="kpi-total" style="color:var(--cyan);">0</div>
+          <div class="kpi-change up" id="kpi-change">▲ 0%</div>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-label">Revenue (Million THB)</div>
+          <div class="kpi-value" id="kpi-revenue" style="color:var(--gold);">0</div>
+          <div class="kpi-change up" id="kpi-rev-change">▲ 0%</div>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-label">Spend/Person/Day</div>
+          <div class="kpi-value" id="kpi-spend" style="color:var(--green);">0</div>
+          <div class="kpi-change" id="kpi-spend-change">— THB</div>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-label">Avg. Stay</div>
+          <div class="kpi-value" id="kpi-stay" style="color:var(--pink);">0</div>
+          <div class="kpi-change" id="kpi-stay-label">nights/trip</div>
+        </div>
+      </div>
+
+      <!-- Charts Area -->
+      <div class="charts-area">
+
+        <!-- Monthly Bar Chart -->
+        <div class="chart-card animate-in" style="animation-delay:0.05s;">
+          <div class="chart-card-title">
+            Monthly Tourists (Person)
+            <span id="chart-year-label">2024</span>
+          </div>
+          <div class="bar-chart-wrap" id="monthly-bars"></div>
+        </div>
+
+        <!-- Bottom row: donut + top cities -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+
+          <!-- Nationality donut -->
+          <div class="chart-card animate-in" style="animation-delay:0.15s;">
+            <div class="chart-card-title">Nationality Breakdown</div>
+            <div class="donut-row">
+              <svg id="nat-donut" width="100" height="100" viewBox="0 0 100 100" style="flex-shrink:0;"></svg>
+              <div class="donut-legend-list" id="nat-legend"></div>
+            </div>
+          </div>
+
+          <!-- Top cities -->
+          <div class="chart-card animate-in" style="animation-delay:0.2s;">
+            <div class="chart-card-title">Top Destinations</div>
+            <div class="city-rank-list" id="top-cities"></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ════════════════════════════════════════
+// DATA
+// ════════════════════════════════════════
+const REGIONS = {
+  north: {
+    name: 'NORTH', nameTH: 'North', detail: '17 Provinces',
+    color: '#00D4FF', badge: 'CULTURE HUB',
+    kpi: { total: '1.57M', revenue: '15,739.54', spend: '4,483.51', stay: '2.81', changeTotal: '+29.24%', changeRev: '+44.03%', spendDir:'up', revDir:'up' },
+    monthly: [402417, 388139, 373664],
+    nationalities: [
+      {name:'Asia', pct:8.6, color:'#00D4FF'},
+      {name:'East Asia', pct:39.1, color:'#A855F7'},
+      {name:'Europe', pct:33.4, color:'#FFD060'},
+      {name:'America', pct:10.1, color:'#00E5A0'},
+      {name:'Others', pct:8.9, color:'rgba(255,255,255,0.25)'},
+    ],
+    cities: [
+      {name:'Chiang Mai', flag:'🌸', sub:'Main CityNorth', pct:100, val:'4.8M', url:'https://travel.trueid.net/detail/K2qVnyVo7MO', previewImg:'img/ch_mai.jpg'},
+      {name:'Chiang Rai', flag:'🗺️', sub:'Temples & Nature', pct:55, val:'2.6M', url:'https://travel.trueid.net/detail/R0LpNq7vYQR', previewImg:'img/ch_rai.jpg'},
+      {name:'Nan', flag:'🏛️', sub:'Historic City', pct:28, val:'1.3M', url:'https://travel.trueid.net/detail/aqP4e528vNd', previewImg:'img/nan.jpg'},
+      {name:'Mae Hong Son', flag:'🌿', sub:'Nature & Hill Tribes', pct:22, val:'1.1M', url:'https://travel.trueid.net/detail/n2lpboApKWZ', previewImg:'img/mh_son.jpg'},
+    ]
+  },
+  northeast: {
+    name: 'NORTHEAST', nameTH: 'Northeast', detail: '20 Provinces',
+    color: '#FFD060', badge: 'ISAN SOUL',
+    kpi: { total: '0.71M', revenue: '1,986.12', spend: '2,393.6', stay: '2.46', changeTotal: '+28.93%', changeRev: '+48.87%', spendDir:'up', revDir:'up' },
+    monthly: [46708, 45694, 42516],
+    nationalities: [
+      {name:'Asia', pct:34.6, color:'#FFD060'},
+      {name:'East Asia', pct:20.6, color:'#FF6B1A'},
+      {name:'Europe', pct:25.9, color:'#00E5A0'},
+      {name:'America', pct:13.3, color:'#00D4FF'},
+      {name:'Others', pct:5.7, color:'rgba(255,255,255,0.25)'},
+    ],
+    cities: [
+      {name:'Khon Kaen', flag:'🏙️', sub:'Isan Hub', pct:100, val:'1.2M', url:'https://travel.trueid.net/detail/oe7zQQkxMRRq', previewImg:'img/khon.webp'},
+      {name:'Nakhon Ratchasima', flag:'🦁', sub:'Major City', pct:85, val:'1.0M', url:'https://travel.trueid.net/detail/WgV9Lj45W68Q', previewImg:'img/nakon.webp'},
+      {name:'Udon Thani', flag:'🌾', sub:'Natural Attractions', pct:60, val:'0.72M', url:'https://travel.trueid.net/detail/YNW1dAOR6Kly', previewImg:'img/udon.jpg'},
+      {name:'Nong Khai', flag:'🌊', sub:'Along Mekong River', pct:45, val:'0.54M', url:'https://travel.trueid.net/detail/oRay0VlMMQDR', previewImg:'img/nong_kh.webp'},
+    ]
+  },
+  central: {
+    name: 'CENTRAL', nameTH: 'Central', detail: '22 Provinces + Bangkok',
+    color: '#00E5A0', badge: '#1 GATEWAY',
+    kpi: { total: '1.5M', revenue: '5,873.59', spend: '3,145.02', stay: '2.35', changeTotal: '+46.8%', changeRev: '+59.82%', spendDir:'up', revDir:'up' },
+    monthly: [180843, 195972, 193017],
+    nationalities: [
+      {name:'Asia', pct:5.3, color:'#00E5A0'},
+      {name:'East Asia', pct:40.2, color:'#00D4FF'},
+      {name:'Europe', pct:42.5, color:'#A855F7'},
+      {name:'America', pct:6.3, color:'#FFD060'},
+      {name:'Others', pct:5.8, color:'rgba(255,255,255,0.25)'},
+    ],
+    cities: [
+      {name:'Bangkok', flag:'🏙️', sub:'Capital City', pct:100, val:'14.2M', url:'https://travel.trueid.net/detail/5W3XRDV9G25', previewImg:'img/bkk.jpg'},
+      {name:'Ayutthaya', flag:'⛩️', sub:'UNESCO World Heritage', pct:40, val:'5.7M', url:'https://travel.trueid.net/detail/aOjpMo04XNmG', previewImg:'img/ayuth.webp'},
+      {name:'Samut Prakan', flag:'🌉', sub:'The Gateway to Thailand', pct:18, val:'2.6M', url:'https://travel.trueid.net/detail/0WQdDEByjZq', previewImg:'img/samut_pra.webp'},
+      {name:'Nakhon Pathom', flag:'🏯', sub:'Phra Pathom Chedi', pct:10, val:'1.4M', url:'https://travel.trueid.net/detail/zMWo5x6bg6K', previewImg:'img/nakhon_pra.webp'},
+    ]
+  },
+  east: {
+    name: 'EAST', nameTH: 'East', detail: '7 Provinces',
+    color: '#FF6B1A', badge: 'BEACH VIBES',
+    kpi: { total: '3.53M', revenue: '71,335.83', spend: '5,862.63', stay: '3.7', changeTotal: '+40.79%', changeRev: '+41.62%', spendDir:'up', revDir:'up' },
+    monthly: [1020372, 1104197, 1046630],
+    nationalities: [
+      {name:'Asia', pct:5.7, color:'#FF6B1A'},
+      {name:'East Asia', pct:45.5, color:'#FFD060'},
+      {name:'Europe', pct:31.4, color:'#A855F7'},
+      {name:'America', pct:2.5, color:'#00E5A0'},
+      {name:'Others', pct:14.8, color:'rgba(255,255,255,0.25)'},
+    ],
+    cities: [
+      {name:'Pattaya', flag:'🏖️', sub:'Popular Beach City', pct:100, val:'4.1M', url:'https://travel.trueid.net/detail/1VEeYYWkQE4V', previewImg:'img/pattaya.jpg'},
+      {name:'Rayong', flag:'🌊', sub:'Ko Samet Island', pct:60, val:'2.5M', url:'https://travel.trueid.net/detail/Zx6Jab80W3E', previewImg:'img/rayong.webp'},
+      {name:'Chanthaburi', flag:'💎', sub:'Gems & Tropical Fruits', pct:28, val:'1.2M', url:'https://travel.trueid.net/detail/4qjv9bPoxq8', previewImg:'img/chanta.jpg'},
+      {name:'Ko Chang', flag:'🐘', sub:'Marine Nature', pct:22, val:'0.9M', url:'https://travel.trueid.net/detail/DY70G86E7gP', previewImg:'img/ko_chang.webp'},
+    ]
+  },
+  west: {
+    name: 'WEST', nameTH: 'West', detail: '5 Provinces',
+    color: '#A855F7', badge: 'HIDDEN GEM',
+    kpi: { total: '2.1M', revenue: '28,400', spend: '3,890', stay: '2.8', changeTotal: '+12.4%', changeRev: '+10.1%', spendDir:'up', revDir:'up' },
+    monthly: [185,168,210],
+    nationalities: [
+      {name:'Malaysia', pct:35, color:'#A855F7'},
+      {name:'Europe', pct:28, color:'#00D4FF'},
+      {name:'China', pct:18, color:'#FFD060'},
+      {name:'Australia', pct:12, color:'#00E5A0'},
+      {name:'Others', pct:7, color:'rgba(255,255,255,0.25)'},
+    ],
+    cities: [
+      {name:'Kanchanaburi', flag:'🌿', sub:'Bridge on River Kwai', pct:100, val:'0.92M', url:'https://travel.trueid.net/detail/DjZWJRypOoD', previewImg:'img/kanch.webp'},
+      {name:'Ratchaburi', flag:'🎨', sub:'Caves & Communities', pct:48, val:'0.44M', url:'https://travel.trueid.net/detail/lyZ7lzBMbR4v', previewImg:'img/ratcha.jpg'},
+      {name:'Tak', flag:'⛰️', sub:'National Park', pct:32, val:'0.30M', url:'https://travel.trueid.net/detail/an01yAWJ9NRB', previewImg:'img/tak.webp'},
+      {name:'Phetchaburi', flag:'🏰', sub:'Royal Palace', pct:22, val:'0.20M', url:'https://www.wongnai.com/listings/attractions-phetchaburi', previewImg:'img/petcha.jpg'},
+    ]
+  },
+  south: {
+    name: 'SOUTH', nameTH: 'South', detail: '14 Provinces',
+    color: '#FF4FA0', badge: 'PARADISE COAST',
+    kpi: { total: '6.94M', revenue: '192,974.69', spend: '7,678.84', stay: '4.86', changeTotal: '+38.78%', changeRev: '+29.79%', spendDir:'up', revDir:'up' },
+    monthly: [1616088, 1651632, 1626109],
+    nationalities: [
+      {name:'Asia', pct:18.6, color:'#FF4FA0'},
+      {name:'East Asia', pct:12.8, color:'#FF6B1A'},
+      {name:'Europe', pct:47.2, color:'#A855F7'},
+      {name:'America', pct:4.0, color:'#FFD060'},
+      {name:'Others', pct:17.4, color:'rgba(255,255,255,0.25)'},
+    ],
+    cities: [
+      {name:'Phuket', flag:'🏝️', sub:'Tourism Capital', pct:100, val:'6.2M', url:'https://travel.trueid.net/detail/Z9A31kEM8dZ', previewImg:'img/phuket.jpg'},
+      {name:'Krabi', flag:'🌊', sub:'Sea & Islands', pct:62, val:'3.8M', url:'https://www.wongnai.com/listings/attractions-krabi', previewImg:'img/krabi.jpg'},
+      {name:'Surat Thani', flag:'🏖️', sub:'Ko Samui & Ko Phangan', pct:50, val:'3.1M', url:'https://travel.trueid.net/detail/Ov7w7Qo105Y', previewImg:'img/surat.jpg'},
+      {name:'Songkhla', flag:'🐟', sub:'Fishing & Culture City', pct:24, val:'1.5M', url:'https://travel.trueid.net/detail/wLKn71xQBzZW', previewImg:'img/songkla.jpg'},
+    ]
+  }
+};
+
+const MONTHS = ['Jan','Feb','Mar'];
+const YEARS = ['2019','2020','2021','2022','2023','2024'];
+
+let activeRegion = null;
+
+// ════════════════════════════════════════
+// SELECT REGION
+// ════════════════════════════════════════
+function selectRegion(regionKey) {
+  activeRegion = regionKey;
+  const data = REGIONS[regionKey];
+
+  // Map path highlight
+  document.querySelectorAll('.region-path').forEach(p => {
+    p.classList.remove('active','dimmed');
+    if (p.id === `path-${regionKey}`) p.classList.add('active');
+    else p.classList.add('dimmed');
+  });
+  // Legend buttons
+  document.querySelectorAll('.legend-btn').forEach(b => {
+    b.classList.remove('active');
+    if (b.dataset.region === regionKey) b.classList.add('active');
+  });
+
+  // Show stats
+  document.getElementById('placeholder-view').style.display = 'none';
+  const sv = document.getElementById('stats-view');
+  sv.style.display = 'flex';
+
+  // Re-trigger animations
+  sv.querySelectorAll('.animate-in').forEach(el => {
+    el.style.animation = 'none';
+    el.offsetHeight;
+    el.style.animation = '';
+  });
+
+  // Fill header
+  document.getElementById('region-name-display').textContent = data.name;
+  document.getElementById('region-name-display').style.color = data.color;
+  document.getElementById('region-sub-display').textContent = `${data.nameTH} · ${data.detail}`;
+  const badge = document.getElementById('region-badge');
+  badge.textContent = data.badge;
+  badge.style.borderColor = data.color;
+  badge.style.color = data.color;
+  badge.style.background = `${data.color}14`;
+
+  // KPIs
+  document.getElementById('kpi-total').textContent = data.kpi.total;
+  document.getElementById('kpi-revenue').textContent = data.kpi.revenue;
+  document.getElementById('kpi-spend').textContent = data.kpi.spend;
+  document.getElementById('kpi-stay').textContent = data.kpi.stay;
+  document.getElementById('kpi-change').textContent = `▲ ${data.kpi.changeTotal} vs last year`;
+  document.getElementById('kpi-rev-change').textContent = `▲ ${data.kpi.changeRev} vs last year`;
+  document.getElementById('kpi-spend-change').textContent = `THB/person/day`;
+  document.getElementById('kpi-stay-label').textContent = `nights/trip`;
+
+  // Monthly bars
+  renderMonthlyBars(data.monthly, data.color);
+
+  // Line chart
+  // Nationality donut
+  renderDonut(data.nationalities);
+
+  // Top cities
+  renderCities(data.cities, data.color);
+}
+
+// ════════════════════════════════════════
+// RENDER: Monthly Bar Chart — Top 3 only
+// ════════════════════════════════════════
+function renderMonthlyBars(monthlyData, color) {
+  const container = document.getElementById('monthly-bars');
+  container.innerHTML = '';
+
+  // Find top 3 months by value
+  const indexed = monthlyData.map((val, i) => ({ val, i }));
+  const top3 = [...indexed].sort((a, b) => b.val - a.val).slice(0, 3);
+  const maxVal = top3[0].val;
+
+  const rankEmoji  = ['🥇', '🥈', '🥉'];
+  const rankColor  = ['#FFD060', '#B0BEC5', '#CD8C4A'];
+
+  top3.forEach(({ val, i }, rank) => {
+    const pct = val / maxVal;
+    const row = document.createElement('div');
+    row.className = 'bar-row';
+    row.style.gridTemplateColumns = '20px 68px 1fr 60px';
+    row.style.gap = '8px';
+    row.innerHTML =
+      '<div style="font-size:16px;line-height:32px;text-align:center;">' + rankEmoji[rank] + '</div>' +
+      '<div class="bar-month" style="text-align:right;color:' + rankColor[rank] + ';font-weight:600;font-size:13px;">' + MONTHS[i] + '</div>' +
+      '<div class="bar-track"><div class="bar-fill" style="background:linear-gradient(90deg,' + color + '88,' + color + ');width:' + (pct*100) + '%;"></div></div>' +
+      '<div class="bar-val" style="color:' + color + ';font-size:13px;font-weight:700;">' + val.toLocaleString() + '</div>';
+    container.appendChild(row);
+    setTimeout(() => { row.querySelector('.bar-fill').classList.add('animated'); }, 60 + rank * 100);
+  });
+
+  const note = document.createElement('div');
+  note.style.cssText = 'margin-top:12px;font-size:10px;color:rgba(200,225,255,0.3);letter-spacing:1px;text-align:right;';
+  note.textContent = 'Top 3 months by arrivals (Person) · 2024';
+  container.appendChild(note);
+}
+
+
+// ════════════════════════════════════════
+// RENDER: Nationality Donut
+// ════════════════════════════════════════
+function renderDonut(nats) {
+  const svg = document.getElementById('nat-donut');
+  const legend = document.getElementById('nat-legend');
+  const cx = 50, cy = 50, r = 35;
+  const circ = 2 * Math.PI * r;
+
+  let offset = -circ * 0.25; // start at top
+  let segments = '';
+  nats.forEach(n => {
+    const dash = (n.pct / 100) * circ;
+    const gap = circ - dash;
+    segments += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${n.color}" stroke-width="12"
+      stroke-dasharray="${dash} ${gap}" stroke-dashoffset="${-offset}" />`;
+    offset += dash;
+  });
+
+  svg.innerHTML = `
+    ${segments}
+    <text x="${cx}" y="${cy+5}" text-anchor="middle" fill="rgba(200,225,255,0.5)" font-size="9" font-family="Outfit,sans-serif">Nationality</text>
+  `;
+
+  legend.innerHTML = nats.map(n => `
+    <div class="donut-legend-item">
+      <div class="donut-legend-dot" style="background:${n.color};"></div>
+      <div class="donut-legend-label">${n.name}</div>
+      <div class="donut-legend-val" style="color:${n.color};">${n.pct}%</div>
+    </div>
+  `).join('');
+}
+
+// ════════════════════════════════════════
+// RENDER: Top Cities
+// ════════════════════════════════════════
+function renderCities(cities, color) {
+  const container = document.getElementById('top-cities');
+  // Rank 1 = 5 stars, rank 2 = 4 stars, rank 3 = 3 stars, rank 4 = 2 stars
+  container.innerHTML = cities.map((c, i) => {
+    const totalStars = 5;
+    const filledStars = Math.max(5 - i, 1);
+    const stars = Array.from({length: totalStars}, (_, s) => {
+      const c2 = s < filledStars ? '#FFD060' : 'rgba(255,255,255,0.15)';
+      return '<span style="color:' + c2 + ';font-size:14px;line-height:1;">★</span>';
+    }).join('');
+    return `
+    <a href="${c.url || '#'}" target="_blank" class="city-link-wrapper" style="text-decoration: none; color: inherit; display: block; position: relative;">
+        <div class="city-rank-row">
+            <div class="rank-num">${i+1}</div>
+            <div class="rank-flag">${c.flag}</div>
+            <div class="rank-city">
+                <div class="rank-city-name">${c.name}</div>
+                <div class="rank-city-sub">${c.sub}</div>
+            </div>
+            <div style="display:flex;gap:1px;align-items:center;flex-shrink:0;">${stars}</div>
+        </div>
+
+        <div class="city-preview-box">
+                <img src="${c.previewImg || 'images/default_preview.jpg'}" alt="${c.name} preview">
+                <div class="preview-text">View info for ${c.name}</div>
+        </div>
+    </a>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════
+// EVENT LISTENERS
+// ════════════════════════════════════════
+// Map paths
+document.querySelectorAll('.region-path').forEach(path => {
+  const id = path.id.replace('path-', '');
+  path.addEventListener('click', () => selectRegion(id));
+  path.addEventListener('mouseenter', () => {
+    if (activeRegion !== id) path.style.filter = 'brightness(1.4)';
+  });
+  path.addEventListener('mouseleave', () => {
+    if (activeRegion !== id) path.style.filter = '';
+  });
+});
+
+// Legend buttons
+document.querySelectorAll('.legend-btn').forEach(btn => {
+  btn.addEventListener('click', () => selectRegion(btn.dataset.region));
+});
+
+// Auto-select on load for demo
+setTimeout(() => selectRegion('central'), 400);
+</script>
+</body>
+</html>
